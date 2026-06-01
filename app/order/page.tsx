@@ -14,7 +14,7 @@ export default function OrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [services, setServices] = useState<ServiceItem[]>([
-    { id: Math.random().toString(36).substr(2, 9), type: "Paper Printing", details: "", note: "" }
+    { id: "item-1", type: "Paper Printing", details: "", note: "" }
   ]);
 
   const serviceOptions = [
@@ -52,7 +52,9 @@ export default function OrderPage() {
       firstName: formData.get("first-name"),
       lastName: formData.get("last-name"),
       email: formData.get("email"),
+      phone: `+63${formData.get("phone")}`,
       paymentMethod: formData.get("payment-method"),
+      deadline: formData.get("deadline"),
       orderNotes: formData.get("order-notes"),
       items: services.map(s => ({
         type: s.type,
@@ -161,6 +163,28 @@ export default function OrderPage() {
                 />
               </div>
             </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="phone" className="block text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50">
+                Phone Number
+              </label>
+              <div className="relative mt-2.5">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <span className="text-zinc-500 sm:text-sm">+63</span>
+                </div>
+                <input
+                  type="tel"
+                  name="phone"
+                  id="phone"
+                  autoComplete="tel"
+                  required
+                  pattern="9[0-9]{9}"
+                  title="Please enter a valid 10-digit mobile number starting with 9 (e.g., 9123456789)"
+                  placeholder="9XX XXX XXXX"
+                  className="block w-full rounded-md border-0 py-2 pl-12 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-brand-orange sm:text-sm sm:leading-6 dark:bg-zinc-900 dark:text-white dark:ring-zinc-800"
+                />
+              </div>
+              <p className="mt-2 text-xs text-zinc-500 italic">Note: Services are currently only available in the Philippines.</p>
+            </div>
           </div>
 
           {/* Dynamic Services List */}
@@ -248,6 +272,22 @@ export default function OrderPage() {
               Additional Information
             </h2>
             <div className="grid grid-cols-1 gap-y-6">
+              <div>
+                <label htmlFor="deadline" className="block text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50">
+                  Expected Deadline
+                </label>
+                <div className="mt-2.5">
+                  <input
+                    type="date"
+                    name="deadline"
+                    id="deadline"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    className="block w-full rounded-md border-0 px-3.5 py-2 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 focus:ring-2 focus:ring-inset focus:ring-brand-orange sm:text-sm sm:leading-6 dark:bg-zinc-900 dark:text-white dark:ring-zinc-800"
+                  />
+                  <p className="mt-2 text-xs text-zinc-500">Note: Turnaround time varies by service type.</p>
+                </div>
+              </div>
               <div>
                 <label htmlFor="payment-method" className="block text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50">
                   Preferred Method of Payment
