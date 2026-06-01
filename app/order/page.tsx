@@ -7,6 +7,7 @@ interface ServiceItem {
   type: string;
   details: string;
   note: string;
+  attachments: File[];
 }
 
 export default function OrderPage() {
@@ -14,7 +15,7 @@ export default function OrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [services, setServices] = useState<ServiceItem[]>([
-    { id: "item-1", type: "Paper Printing", details: "", note: "" }
+    { id: "item-1", type: "Paper Printing", details: "", note: "", attachments: [] }
   ]);
 
   const serviceOptions = [
@@ -28,7 +29,7 @@ export default function OrderPage() {
   const addService = () => {
     setServices([
       ...services,
-      { id: Math.random().toString(36).substr(2, 9), type: "Paper Printing", details: "", note: "" }
+      { id: Math.random().toString(36).substr(2, 9), type: "Paper Printing", details: "", note: "", attachments: [] }
     ]);
   };
 
@@ -38,8 +39,14 @@ export default function OrderPage() {
     }
   };
 
-  const updateService = (id: string, field: keyof ServiceItem, value: string) => {
+  const updateService = (id: string, field: keyof ServiceItem, value: string | File[]) => {
     setServices(services.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const handleItemFileChange = (id: string, files: FileList | null) => {
+    if (files) {
+      updateService(id, "attachments", Array.from(files));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -47,30 +54,47 @@ export default function OrderPage() {
     setIsSubmitting(true);
     setError(null);
 
+    // Validation: Ensure at least one attachment is provided across all items
+    const hasAttachments = services.some(s => s.attachments.length > 0);
+    if (!hasAttachments) {
+      setError("Please add at least one attachment (design, logo, or reference file) to your order before submitting.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
-    const data = {
-      firstName: formData.get("first-name"),
-      lastName: formData.get("last-name"),
-      email: formData.get("email"),
-      phone: `+63${formData.get("phone")}`,
-      paymentMethod: formData.get("payment-method"),
-      deadline: formData.get("deadline"),
-      orderNotes: formData.get("order-notes"),
-      items: services.map(s => ({
-        type: s.type,
-        specifications: s.details,
-        note: s.note
-      })),
-      submittedAt: new Date().toISOString(),
-    };
+    
+    // Prepare the payload using FormData to support file uploads
+    const payload = new FormData();
+    payload.append("firstName", formData.get("first-name") as string);
+    payload.append("lastName", formData.get("last-name") as string);
+    payload.append("email", formData.get("email") as string);
+    payload.append("phone", `+63${formData.get("phone")}`);
+    payload.append("paymentMethod", formData.get("payment-method") as string);
+    payload.append("deadline", formData.get("deadline") as string);
+    payload.append("orderNotes", formData.get("order-notes") as string);
+    
+    // Metadata for items (excluding File objects which are handled separately)
+    payload.append("items", JSON.stringify(services.map(s => ({
+      id: s.id,
+      type: s.type,
+      specifications: s.details,
+      note: s.note
+    }))));
+    payload.append("submittedAt", new Date().toISOString());
+
+    // Add attachments grouped by item id
+    services.forEach((service) => {
+      service.attachments.forEach((file) => {
+        // Appending with item-specific keys or using a naming convention n8n can parse
+        payload.append(`attachments_${service.id}`, file);
+      });
+    });
 
     try {
       const response = await fetch("https://n8n-service-89y0.onrender.com/webhook-test/95a258dc-c5ef-45aa-ab01-6843d00dcda0", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+        body: payload,
       });
 
       if (!response.ok) {
@@ -95,7 +119,7 @@ export default function OrderPage() {
         <button
           onClick={() => {
             setSubmitted(false);
-            setServices([{ id: Math.random().toString(36).substr(2, 9), type: "Paper Printing", details: "", note: "" }]);
+            setServices([{ id: Math.random().toString(36).substr(2, 9), type: "Paper Printing", details: "", note: "", attachments: [] }]);
           }}
           className="mt-10 rounded-full bg-brand-orange px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-orange/90 transition-all"
         >
@@ -247,6 +271,31 @@ export default function OrderPage() {
                         placeholder="e.g. Please use the blue logo for these cards."
                         className="mt-2.5 block w-full rounded-md border-0 px-3.5 py-2 text-zinc-900 shadow-sm ring-1 ring-inset ring-brand-blue/10 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-brand-orange sm:text-sm sm:leading-6 dark:bg-zinc-900 dark:text-white dark:ring-zinc-800"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-50">
+                        Item Attachments (Designs, Logos, etc.)
+                      </label>
+                      <div className="mt-2.5">
+                        <input
+                          type="file"
+                          multiple
+                          onChange={(e) => handleItemFileChange(service.id, e.target.files)}
+                          className="block w-full text-sm text-zinc-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-brand-blue-light file:text-brand-blue
+                            hover:file:bg-brand-blue-light/80
+                            dark:file:bg-zinc-800 dark:file:text-brand-blue-light
+                            transition-all"
+                        />
+                        {service.attachments.length > 0 && (
+                          <p className="mt-2 text-xs text-brand-blue font-medium">
+                            {service.attachments.length} file(s) selected for this item.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
